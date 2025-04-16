@@ -38,8 +38,6 @@ async function main() {
   // Connect to stdio transport
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  
-  console.log('Wikipedia MCP server started');
 }
 
 // Function to get random Wikipedia page
@@ -55,6 +53,7 @@ async function getRandomWikipediaPage() {
 
 // Start the server
 main().catch(error => {
+  // Write to stderr instead of stdout to avoid interfering with MCP protocol
   console.error('Error starting server:', error);
   process.exit(1);
 });

@@ -91,19 +91,30 @@ const randomPageResult = await client.callTool({
 
 ### wikipedia_page_details
 
-Gets detailed information about a specific Wikipedia page.
+Gets content from a specific Wikipedia page with configurable length.
 
 **Arguments:** 
 - `query` (string): Wikipedia page title or full Wikipedia URL
+- `max_length` (number, optional): Maximum length of content in characters (default: 2000, max: 10000)
 
-**Response:** Detailed information including title, description, summary, thumbnail, categories, last modified date, and URL
+**Response:** Clean, focused content with just the title, article text, and URL
 
 Example client usage:
 ```typescript
-const detailsResult = await client.callTool({
+// Default length (2000 characters)
+const basicResult = await client.callTool({
   name: "wikipedia_page_details",
   arguments: {
     query: "Albert Einstein" // Can also use a URL: "https://en.wikipedia.org/wiki/Albert_Einstein"
+  }
+});
+
+// Custom length (5000 characters - will get more content beyond intro)
+const longResult = await client.callTool({
+  name: "wikipedia_page_details",
+  arguments: {
+    query: "Albert Einstein",
+    max_length: 5000
   }
 });
 ```
@@ -161,7 +172,7 @@ When calling the `wikipedia_page_details` tool, you'll get a response like:
   "content": [
     {
       "type": "text",
-      "text": "Title: Albert Einstein\n\nDescription: German-born theoretical physicist\n\nSummary: Albert Einstein was a German-born theoretical physicist who is widely held to be one of the greatest and most influential scientists of all time. He developed the theory of relativity and made significant contributions to the development of quantum mechanics...\n\nThumbnail: https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Albert_Einstein_Head.jpg/434px-Albert_Einstein_Head.jpg\n\nCategories: 1879 births, 1955 deaths, 20th-century American inventors, 20th-century American physicists\n\nLast Modified: 4/16/2023, 2:15:30 PM\n\nURL: https://en.wikipedia.org/wiki/Albert_Einstein"
+      "text": "Title: Albert Einstein\n\nAlbert Einstein (14 March 1879 – 18 April 1955) was a German-born theoretical physicist who is best known for developing the theory of relativity. Einstein also made important contributions to quantum mechanics, a revolution in physics begun at the start of the 20th century. His mass–energy equivalence formula E = mc2, which arises from relativity theory, has been dubbed \"the world's most famous equation\". His work is also known for its influence on the philosophy of science. He received the 1921 Nobel Prize in Physics \"for his services to theoretical physics, and especially for his discovery of the law of the photoelectric effect\", a pivotal step in the development of quantum theory. His intellectual achievements and originality resulted in \"Einstein\" becoming synonymous with \"genius\".\n\nURL: https://en.wikipedia.org/wiki/Albert_Einstein"
     }
   ]
 }
@@ -170,7 +181,18 @@ When calling the `wikipedia_page_details` tool, you'll get a response like:
 ## How it works
 
 The server uses Wikipedia's APIs:
-- The REST API for basic page information
-- The Action API for additional details like categories and last modified date
+- The REST API for basic page information (title, URL)
+- The Action API with the `extracts` parameter for article content
+- Smart content handling that automatically adjusts to user-specified max_length:
+  - For shorter content (≤1500 chars): Returns just the introduction
+  - For longer content (>1500 chars): Includes content beyond the introduction
 
 Both tools are designed to handle errors gracefully and provide meaningful error messages if a page cannot be found or another issue occurs.
+
+### Technical Details
+
+The `max_length` parameter allows users to control how much content they receive:
+- Values from 500-10000 characters are supported (values outside this range are clamped)
+- Default is 2000 characters
+- Setting to higher values (e.g., 5000+) provides more comprehensive information
+- Content is cleanly formatted with just title, article text, and URL

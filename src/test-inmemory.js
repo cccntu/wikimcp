@@ -15,7 +15,7 @@ async function getRandomWikipediaPage() {
 }
 
 // Function to get detailed information about a specific Wikipedia page
-async function getWikipediaPageDetails(query) {
+async function getWikipediaPageDetails(query, maxLength = 2000) {
   // Handle both titles and URLs
   let title;
   
@@ -30,7 +30,7 @@ async function getWikipediaPageDetails(query) {
     title = query;
   }
   
-  // First get basic info using the REST API for metadata
+  // Get basic info using the REST API for metadata (title and URL)
   const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
   const summaryResponse = await fetch(summaryUrl);
   
@@ -40,28 +40,21 @@ async function getWikipediaPageDetails(query) {
   
   const summaryData = await summaryResponse.json();
   
-  // Get categories and last modified date
-  const categoriesUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=categories|info&titles=${encodeURIComponent(title)}&format=json&origin=*`;
-  const categoriesResponse = await fetch(categoriesUrl);
-  const categoriesData = await categoriesResponse.json();
+  // Get a longer extract with the user-specified length
+  // If maxLength is high enough, we get content beyond intro by setting exintro=0
+  const useFullArticle = maxLength > 1500;
   
-  // Extract page ID (we don't know it in advance)
-  const pageId = Object.keys(categoriesData.query.pages)[0];
-  const pageDetails = categoriesData.query.pages[pageId];
-  
-  // Get a longer extract (around 1000 characters, which is more detailed but not too long)
-  const extractUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&exsectionformat=plain&exchars=1000&titles=${encodeURIComponent(title)}&format=json&origin=*`;
+  const extractUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=${useFullArticle ? '0' : '1'}&explaintext=1&exsectionformat=plain&exchars=${maxLength}&titles=${encodeURIComponent(title)}&format=json&origin=*`;
   const extractResponse = await fetch(extractUrl);
   const extractData = await extractResponse.json();
   const extractPageId = Object.keys(extractData.query.pages)[0];
   const detailedExtract = extractData.query.pages[extractPageId].extract;
   
-  // Combine the data
+  // Return only the essential data (title, content, and URL)
   return {
-    ...summaryData,
-    extract: detailedExtract, // Replace the short summary with the more detailed one
-    categories: pageDetails.categories || [],
-    lastModified: pageDetails.touched
+    title: summaryData.title,
+    extract: detailedExtract,
+    content_urls: summaryData.content_urls
   };
 }
 
@@ -109,26 +102,18 @@ async function runTest() {
     'wikipedia_page_details',
     'Get detailed information about a specific Wikipedia page by title or URL',
     {
-      query: z.string().describe('Wikipedia page title or full Wikipedia URL')
+      query: z.string().describe('Wikipedia page title or full Wikipedia URL'),
+      max_length: z.number().optional().describe('Maximum length of content in characters (default: 2000, max: 10000)')
     },
-    async ({ query }) => {
+    async ({ query, max_length = 2000 }) => {
       try {
-        const page = await getWikipediaPageDetails(query);
+        // Validate max_length (ensure it's within reasonable limits)
+        const validatedMaxLength = Math.min(Math.max(500, max_length), 10000);
+        
+        const page = await getWikipediaPageDetails(query, validatedMaxLength);
         
         let responseText = `Title: ${page.title}\n\n`;
-        
-        if (page.description) {
-          responseText += `Description: ${page.description}\n\n`;
-        }
-        
-        responseText += `Summary: ${page.extract}\n\n`;
-        
-        if (page.thumbnail) {
-          responseText += `Thumbnail: ${page.thumbnail.source}\n\n`;
-        }
-        
-        responseText += `Categories: ${page.categories ? page.categories.map(c => c.title.replace('Category:', '')).join(', ') : 'None'}\n\n`;
-        responseText += `Last Modified: ${page.lastModified ? new Date(page.lastModified).toLocaleString() : 'Unknown'}\n\n`;
+        responseText += `${page.extract}\n\n`;
         responseText += `URL: ${page.content_urls.desktop.page}`;
         
         return {
@@ -184,16 +169,40 @@ async function runTest() {
     const titleMatch = text.match(/Title: (.*?)\n/);
     const title = titleMatch ? titleMatch[1] : 'Albert Einstein'; // Fallback to Einstein if we can't extract
     
-    // Call the wikipedia_page_details tool with the title from the random page
-    console.log(`\nTesting wikipedia_page_details tool with query: "${title}"...`);
+    // Call the wikipedia_page_details tool with the title from the random page (default length)
+    console.log(`\nTesting wikipedia_page_details tool with query: "${title}" (default length)...`);
     const detailsResult = await client.callTool({
       name: 'wikipedia_page_details',
       arguments: { query: title }
     });
     
-    // Display the result
-    console.log('Page details result:');
-    console.log(detailsResult);
+    // Display the result (truncating for readability)
+    const contentText = detailsResult.content[0].text;
+    console.log('Page details result (truncated):');
+    console.log({
+      content: [{
+        type: 'text',
+        text: contentText.length > 300 
+          ? contentText.substring(0, 300) + '... [truncated, full length: ' + contentText.length + ' chars]' 
+          : contentText
+      }]
+    });
+    
+    // Try with a longer length for Einstein
+    console.log('\nTesting wikipedia_page_details tool with "Albert Einstein" and max_length=5000...');
+    const longResult = await client.callTool({
+      name: 'wikipedia_page_details',
+      arguments: { 
+        query: 'Albert Einstein',
+        max_length: 5000 
+      }
+    });
+    
+    // Display summary info about the longer result
+    const longText = longResult.content[0].text;
+    console.log(`Einstein article details: ${longText.length} characters`);
+    console.log('First 200 chars: ' + longText.substring(0, 200) + '...');
+    console.log('Last 100 chars: ' + longText.substring(longText.length - 100));
     
     // Test passed
     console.log('\nTest completed successfully!');

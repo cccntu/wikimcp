@@ -1,0 +1,22 @@
+{
+  "name": "wikimcp",
+  "version": "1.0.0",
+  "description": "MCP server with random Wikipedia page tool",
+  "main": "src/server.js",
+  "bin": {
+    "wikimcp": "./src/cli.js"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["mcp", "wikipedia"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.9.0"
+  },
+  "engines": {
+    "node": ">=14.16"
+  }
+}

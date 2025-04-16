@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { z } from 'zod';
 
 // Main function to start server
 async function main() {
@@ -35,6 +36,51 @@ async function main() {
     }
   );
 
+  // Add wikipedia_page_details tool
+  server.tool(
+    'wikipedia_page_details',
+    'Get detailed information about a specific Wikipedia page by title or URL',
+    {
+      query: z.string().describe('Wikipedia page title or full Wikipedia URL')
+    },
+    async ({ query }) => {
+      try {
+        const page = await getWikipediaPageDetails(query);
+        
+        let responseText = `Title: ${page.title}\n\n`;
+        
+        if (page.description) {
+          responseText += `Description: ${page.description}\n\n`;
+        }
+        
+        responseText += `Summary: ${page.extract}\n\n`;
+        
+        if (page.thumbnail) {
+          responseText += `Thumbnail: ${page.thumbnail.source}\n\n`;
+        }
+        
+        responseText += `Categories: ${page.categories ? page.categories.map(c => c.title.replace('Category:', '')).join(', ') : 'None'}\n\n`;
+        responseText += `Last Modified: ${page.lastModified ? new Date(page.lastModified).toLocaleString() : 'Unknown'}\n\n`;
+        responseText += `URL: ${page.content_urls.desktop.page}`;
+        
+        return {
+          content: [{
+            type: 'text',
+            text: responseText
+          }]
+        };
+      } catch (error) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Error fetching Wikipedia page details: ${error.message}`
+          }],
+          isError: true
+        };
+      }
+    }
+  );
+
   // Connect to stdio transport
   const transport = new StdioServerTransport();
   await server.connect(transport);
@@ -48,6 +94,49 @@ async function getRandomWikipediaPage() {
     title: data.title,
     summary: data.extract,
     url: data.content_urls.desktop.page
+  };
+}
+
+// Function to get detailed information about a specific Wikipedia page
+async function getWikipediaPageDetails(query) {
+  // Handle both titles and URLs
+  let title;
+  
+  if (query.startsWith('http')) {
+    // Extract title from URL
+    const url = new URL(query);
+    const pathParts = url.pathname.split('/');
+    title = pathParts[pathParts.length - 1];
+    title = decodeURIComponent(title);
+  } else {
+    // Use query as title
+    title = query;
+  }
+  
+  // First get basic info using the REST API
+  const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+  const summaryResponse = await fetch(summaryUrl);
+  
+  if (!summaryResponse.ok) {
+    throw new Error(`Wikipedia page not found: ${title}`);
+  }
+  
+  const summaryData = await summaryResponse.json();
+  
+  // Then get more detailed info using the action API
+  const detailsUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=categories|info&titles=${encodeURIComponent(title)}&format=json&origin=*`;
+  const detailsResponse = await fetch(detailsUrl);
+  const detailsData = await detailsResponse.json();
+  
+  // Extract page ID (we don't know it in advance)
+  const pageId = Object.keys(detailsData.query.pages)[0];
+  const pageDetails = detailsData.query.pages[pageId];
+  
+  // Combine the data
+  return {
+    ...summaryData,
+    categories: pageDetails.categories || [],
+    lastModified: pageDetails.touched
   };
 }
 

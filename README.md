@@ -1,10 +1,11 @@
 # Wikipedia MCP Server
 
-A simple MCP (Model Context Protocol) server that provides a tool to fetch random Wikipedia pages.
+A simple MCP (Model Context Protocol) server that provides tools to fetch and explore Wikipedia pages.
 
 ## Features
 
-- `random_wikipedia_page` tool that fetches a random Wikipedia page with title, summary, and URL
+- `random_wikipedia_page`: Fetches a random Wikipedia page with title, summary, and URL
+- `wikipedia_page_details`: Gets detailed information about a specific Wikipedia page by title or URL
 - Zero dependencies beyond the MCP SDK
 - Easy to use with npx directly from GitHub
 
@@ -63,15 +64,59 @@ node -e "console.log(JSON.stringify({jsonrpc: '2.0', method: 'tools/list', param
 
 # Call the random_wikipedia_page tool
 node -e "console.log(JSON.stringify({jsonrpc: '2.0', method: 'tools/call', params: {name: 'random_wikipedia_page', arguments: {}}, id: '3'}))" | node src/server.js
+
+# Call the wikipedia_page_details tool
+node -e "console.log(JSON.stringify({jsonrpc: '2.0', method: 'tools/call', params: {name: 'wikipedia_page_details', arguments: {query: 'Albert Einstein'}}, id: '4'}))" | node src/server.js
 ```
 
-## Using with MCP clients
+## Available Tools
 
-The server exposes a single tool:
+The server exposes two tools:
 
-- `random_wikipedia_page`: Takes no arguments and returns a randomly selected Wikipedia page with its title, summary, and URL.
+### random_wikipedia_page
+
+Gets a random Wikipedia page with basic information.
+
+**Arguments:** None
+
+**Response:** Title, summary, and URL of a random Wikipedia page
 
 Example client usage:
+```typescript
+const randomPageResult = await client.callTool({
+  name: "random_wikipedia_page",
+  arguments: {}
+});
+```
+
+### wikipedia_page_details
+
+Gets detailed information about a specific Wikipedia page.
+
+**Arguments:** 
+- `query` (string): Wikipedia page title or full Wikipedia URL
+
+**Response:** Detailed information including title, description, summary, thumbnail, categories, last modified date, and URL
+
+Example client usage:
+```typescript
+const detailsResult = await client.callTool({
+  name: "wikipedia_page_details",
+  arguments: {
+    query: "Albert Einstein" // Can also use a URL: "https://en.wikipedia.org/wiki/Albert_Einstein"
+  }
+});
+```
+
+## Workflow Example
+
+The tools are designed to work together in a workflow:
+
+1. Use `random_wikipedia_page` to discover an interesting topic
+2. Extract the title or URL from the response
+3. Use `wikipedia_page_details` to get more detailed information about that page
+
+## Example Client Code
 
 ```typescript
 // Create client and connect to the server
@@ -85,43 +130,47 @@ const client = new Client({
 });
 await client.connect(transport);
 
-// Call the tool
-const result = await client.callTool({
+// Get a random page
+const randomResult = await client.callTool({
   name: "random_wikipedia_page",
   arguments: {}
 });
 
-console.log(result.content[0].text);
+// Extract the title from the result
+const text = randomResult.content[0].text;
+const titleMatch = text.match(/Title: (.*?)\n/);
+const title = titleMatch ? titleMatch[1] : null;
+
+// If we found a title, get more details about it
+if (title) {
+  const detailsResult = await client.callTool({
+    name: "wikipedia_page_details",
+    arguments: { query: title }
+  });
+  
+  console.log(detailsResult.content[0].text);
+}
 ```
-
-## How it works
-
-The server uses Wikipedia's REST API to fetch a random article summary. It doesn't require any additional dependencies as it uses the built-in fetch API.
 
 ## Example Response
 
-When calling the `random_wikipedia_page` tool, you'll get a response like:
+When calling the `wikipedia_page_details` tool, you'll get a response like:
 
 ```json
 {
   "content": [
     {
       "type": "text",
-      "text": "Title: Paddy Ashdown\n\nSummary: Jeremy John Durham Ashdown, Baron Ashdown of Norton-sub-Hamdon, better known as Paddy Ashdown, was a British politician and diplomat who served as Leader of the Liberal Democrats from 1988 to 1999. Internationally, he is recognised for his role as High Representative for Bosnia and Herzegovina from 2002 to 2006, following his vigorous lobbying for military action against Yugoslavia in the 1990s.\n\nURL: https://en.wikipedia.org/wiki/Paddy_Ashdown"
+      "text": "Title: Albert Einstein\n\nDescription: German-born theoretical physicist\n\nSummary: Albert Einstein was a German-born theoretical physicist who is widely held to be one of the greatest and most influential scientists of all time. He developed the theory of relativity and made significant contributions to the development of quantum mechanics...\n\nThumbnail: https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Albert_Einstein_Head.jpg/434px-Albert_Einstein_Head.jpg\n\nCategories: 1879 births, 1955 deaths, 20th-century American inventors, 20th-century American physicists\n\nLast Modified: 4/16/2023, 2:15:30 PM\n\nURL: https://en.wikipedia.org/wiki/Albert_Einstein"
     }
   ]
 }
 ```
 
-## Example usage with Claude Code or other MCP-compatible clients
+## How it works
 
-1. Start the server in one terminal:
-   ```bash
-   npx github:cccntu/wikimcp
-   ```
+The server uses Wikipedia's APIs:
+- The REST API for basic page information
+- The Action API for additional details like categories and last modified date
 
-2. Connect to it with an MCP client in another terminal or application.
-
-3. Call the `random_wikipedia_page` tool to get a random Wikipedia article.
-
-The tool will return a random Wikipedia article with its title, summary, and URL.
+Both tools are designed to handle errors gracefully and provide meaningful error messages if a page cannot be found or another issue occurs.

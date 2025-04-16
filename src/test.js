@@ -28,17 +28,43 @@ async function testServer() {
     console.log('Available tools:', tools);
     
     // Call the random_wikipedia_page tool
-    console.log('Calling random_wikipedia_page tool...');
-    const result = await client.callTool({
+    console.log('\nTesting random_wikipedia_page tool...');
+    const randomResult = await client.callTool({
       name: 'random_wikipedia_page',
       arguments: {}
     });
     
     // Display the result
-    console.log('Tool result:');
-    console.log(result);
+    console.log('Random page result:');
+    console.log(randomResult);
     
-    console.log('Test completed successfully!');
+    // Extract the title from the result
+    const text = randomResult.content[0].text;
+    const titleMatch = text.match(/Title: (.*?)\n/);
+    const title = titleMatch ? titleMatch[1] : 'Albert Einstein'; // Fallback to Einstein if we can't extract
+    
+    // Call the wikipedia_page_details tool with the title from the random page
+    console.log(`\nTesting wikipedia_page_details tool with query: "${title}"...`);
+    const detailsResult = await client.callTool({
+      name: 'wikipedia_page_details',
+      arguments: { query: title }
+    });
+    
+    // Display the result
+    console.log('Page details result:');
+    console.log(detailsResult);
+    
+    // Test calling wikipedia_page_details with a fixed known page
+    console.log('\nTesting wikipedia_page_details tool with known page: "Albert Einstein"...');
+    const einsteinResult = await client.callTool({
+      name: 'wikipedia_page_details',
+      arguments: { query: 'Albert Einstein' }
+    });
+    
+    console.log('Albert Einstein page details:');
+    console.log(einsteinResult);
+    
+    console.log('\nAll tests completed successfully!');
   } catch (error) {
     console.error('Error testing MCP server:', error);
   } finally {

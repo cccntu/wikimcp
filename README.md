@@ -6,48 +6,30 @@ A simple MCP (Model Context Protocol) server that provides a tool to fetch rando
 
 - `random_wikipedia_page` tool that fetches a random Wikipedia page with title, summary, and URL
 - Zero dependencies beyond the MCP SDK
-- Easy to use with npx
+- Easy to use with npx directly from GitHub
 
-## Installation
+## Installation & Usage
+
+### Run directly with npx from GitHub (no installation needed)
+
+```bash
+npx github:cccntu/wikimcp
+```
 
 ### Local Development
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/wikimcp.git
+git clone https://github.com/cccntu/wikimcp.git
 cd wikimcp
 npm install
+npm start
 ```
 
 ### Global Installation
 
 ```bash
-npm install -g wikimcp
-```
-
-### No Installation (using npx)
-
-```bash
-npx wikimcp
-```
-
-## Usage
-
-### Local Development
-
-```bash
-npm start
-```
-
-### After Global Installation
-
-```bash
+npm install -g github:cccntu/wikimcp
 wikimcp
-```
-
-### Using npx (no installation)
-
-```bash
-npx wikimcp
 ```
 
 This will start the MCP server using stdio as the transport mechanism.
@@ -71,17 +53,15 @@ const result = await client.callTool({
 
 The server uses Wikipedia's REST API to fetch a random article summary. It doesn't require any additional dependencies as it uses the built-in fetch API.
 
-## Publishing
+## Example usage with Claude Code or other MCP-compatible clients
 
-To publish to npm:
+1. Start the server in one terminal:
+   ```bash
+   npx github:cccntu/wikimcp
+   ```
 
-```bash
-npm login
-npm publish
-```
+2. Connect to it with an MCP client in another terminal or application.
 
-After publishing, users can run it directly with:
+3. Call the `random_wikipedia_page` tool to get a random Wikipedia article.
 
-```bash
-npx wikimcp
-```
+The tool will return a random Wikipedia article with its title, summary, and URL.

@@ -1,4 +1,3 @@
-import { spawn } from 'child_process';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
@@ -6,15 +5,10 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 async function testServer() {
   console.log('Starting Wikipedia MCP server test...');
   
-  // Start the MCP server process
-  const serverProcess = spawn('node', ['./src/server.js'], {
-    stdio: ['pipe', 'pipe', process.stderr]
-  });
-  
-  // Create a client transport connected to the server process
+  // Create a client transport that starts the server process
   const transport = new StdioClientTransport({
-    stdin: serverProcess.stdin,
-    stdout: serverProcess.stdout
+    command: 'node',
+    args: ['./src/server.js']
   });
   
   // Create the MCP client
@@ -50,7 +44,6 @@ async function testServer() {
   } finally {
     // Clean up
     await client.close();
-    serverProcess.kill();
   }
 }
 

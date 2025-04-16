@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { createTransportPair } from '@modelcontextprotocol/sdk/inMemory.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
 // Function to get random Wikipedia page (same as in server.js)
 async function getRandomWikipediaPage() {
@@ -18,7 +18,7 @@ async function runTest() {
   console.log('Starting in-memory test...');
   
   // Create a linked pair of transports for the client and server
-  const { clientTransport, serverTransport } = createTransportPair();
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   
   // Create the MCP server
   const server = new McpServer({

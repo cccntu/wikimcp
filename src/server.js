@@ -113,7 +113,7 @@ async function getWikipediaPageDetails(query) {
     title = query;
   }
   
-  // First get basic info using the REST API
+  // First get basic info using the REST API for metadata
   const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
   const summaryResponse = await fetch(summaryUrl);
   
@@ -123,18 +123,26 @@ async function getWikipediaPageDetails(query) {
   
   const summaryData = await summaryResponse.json();
   
-  // Then get more detailed info using the action API
-  const detailsUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=categories|info&titles=${encodeURIComponent(title)}&format=json&origin=*`;
-  const detailsResponse = await fetch(detailsUrl);
-  const detailsData = await detailsResponse.json();
+  // Get categories and last modified date
+  const categoriesUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=categories|info&titles=${encodeURIComponent(title)}&format=json&origin=*`;
+  const categoriesResponse = await fetch(categoriesUrl);
+  const categoriesData = await categoriesResponse.json();
   
   // Extract page ID (we don't know it in advance)
-  const pageId = Object.keys(detailsData.query.pages)[0];
-  const pageDetails = detailsData.query.pages[pageId];
+  const pageId = Object.keys(categoriesData.query.pages)[0];
+  const pageDetails = categoriesData.query.pages[pageId];
+  
+  // Get a longer extract (around 1000 characters, which is more detailed but not too long)
+  const extractUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&exsectionformat=plain&exchars=1000&titles=${encodeURIComponent(title)}&format=json&origin=*`;
+  const extractResponse = await fetch(extractUrl);
+  const extractData = await extractResponse.json();
+  const extractPageId = Object.keys(extractData.query.pages)[0];
+  const detailedExtract = extractData.query.pages[extractPageId].extract;
   
   // Combine the data
   return {
     ...summaryData,
+    extract: detailedExtract, // Replace the short summary with the more detailed one
     categories: pageDetails.categories || [],
     lastModified: pageDetails.touched
   };

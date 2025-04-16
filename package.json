@@ -9,7 +9,8 @@
   },
   "scripts": {
     "start": "node src/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node src/test.js",
+    "test:inmemory": "node src/test-inmemory.js"
   },
   "keywords": ["mcp", "wikipedia"],
   "author": "",

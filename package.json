@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "MCP server with random Wikipedia page tool",
   "main": "src/server.js",
+  "type": "module",
   "bin": {
     "wikimcp": "./src/cli.js"
   },
